@@ -8,7 +8,7 @@ Never download a new <tt>deploy.rb</tt> again.
 
 Put this in <tt>config/environment.rb</tt>:
 
-  config.gem 'ey_cloud_awareness', :version => '[WHATEVER THE CURRENT GEM VERSION IS]', :lib => false
+  config.gem 'ey_cloud_awareness', :version => '[WHATEVER THE CURRENT GEM VERSION IS]', :lib => false, :source => 'http://gemcutter.org'
 
 Put this in your <tt>config/deploy.rb</tt> (or wherever your deploy-related Capfile is):
 
