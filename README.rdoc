@@ -1,17 +1,92 @@
 = ey_cloud_awareness
 
-Description goes here.
+Make your EngineYard cloud instances aware of each other.
 
-== Note on Patches/Pull Requests
- 
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests for it. This is important so I don't break it in a
-  future version unintentionally.
-* Commit, do not mess with rakefile, version, or history.
-  (if you want to have your own version, that is fine but
-   bump version in a commit by itself I can ignore when I pull)
-* Send me a pull request. Bonus points for topic branches.
+Never download a new <tt>deploy.rb</tt> again.
+
+== Quick start
+
+Put this in <tt>config/environment.rb</tt>:
+
+  config.gem 'ey_cloud_awareness', :version => '[WHATEVER THE CURRENT GEM VERSION IS]', :lib => false
+
+Put this in your <tt>config/deploy.rb</tt> (or wherever your deploy-related Capfile is):
+
+  load "#{Gem.searcher.find('ey_cloud_awareness').full_gem_path}/lib/tasks/capistrano_tasks.rb"
+
+  task :my_app_production do
+    role :app_master, 'my_app.com'          # or you can use its Elastic IP
+    set :rails_env, 'production'            # required
+    set :deploy_to, '/data/my_app'          # required
+    find_and_execute_task 'eyc_setup'       # note that we don't use eyc: namespace
+  end
+
+  task :my_app_staging do
+    role :app_master, 'staging.my_app.com'  # or you can use its Elastic IP
+    set :rails_env, 'production'            # required
+    set :deploy_to, '/data/my_app'          # required
+    find_and_execute_task 'eyc_setup'       # note that we don't use eyc: namespace
+  end
+  
+  # add more tasks if you have more cloud environments
+
+Now you should be able to eycap stuff like:
+
+  cap my_app_production monit:status
+
+...and <b>capistrano will always have a fresh list of your environment's instances</b>. Roles like <tt>:app</tt>, <tt>:db</tt>, and <tt>:utility</tt> are set properly.
+
+== Just dumping information about your instances
+
+Once you've done the quickstart, try:
+
+  cap my_app_production eyc:app         # gets a list of your app instances, including app_master
+  cap my_app_production eyc:utility     # ditto for utility instances
+  cap my_app_production eyc:db          # gets your master db instance (FIXME: I don't think it will find slaves)
+  cap my_app_production eyc:all         # gets a list of all your instances
+
+== Using the EngineYardCloudInstance class inside Rails
+
+I run a memcached server on every app instance, so I have this in <tt>config/environment.rb</tt>:
+
+  Rails::Initializer.run do |config|
+    [...]
+    config.cache_store = :mem_cache_store, EngineYardCloudInstance.app.map { |i| "#{i.private_dns_name}:11211" }
+    [...]
+  end
+
+Or whatever you want:
+
+  >> all_app_instances = EngineYardCloudInstance.app      
+  => [#<EngineYardCloudInstance:0xb5e12f70 @instance_id="i-50cf5838">, #<EngineYardCloudInstance:0xb5e12f5c @instance_id="i-dc9207b4">, #<EngineYardCloudInstance:0xb5e12f34 @instance_id="i-b2d84fda">]
+  >> all_app_instances.first.dns_name
+  => "ec2-67-202-43-40.compute-1.amazonaws.com"
+  >> pp all_app_instances.first.to_hash
+  {:dns_name=>"ec2-67-202-43-40.compute-1.amazonaws.com",
+   :instance_role=>"app",
+   :aws_groups=>["ey-app1_production-1256085955-3205-13340"],
+   :aws_instance_id=>"i-50cf5838",
+   :private_dns_name=>"domU-12-31-39-01-99-D3.compute-1.internal",
+   :aws_state=>"running"}
+  => nil
+
+== A note on EngineYard dependence
+
+This gem depends on
+
+  <tt>/etc/chef/dna.json</tt>
+
+being present and containing certain attributes as named by EngineYard. Please let me know if something changes.
+
+== A note on caching and network needs
+
+I tried to be smart about caching the results of network calls.
+
+Stuff like the current instance id, which is pulled from an EC2 metadata server, is stored in
+
+  CURRENT_INSTANCE_ID_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_id" : '/etc/engine_yard_cloud_instance_id'
+
+Please let me know if this causes problems.
 
 == Copyright
 
