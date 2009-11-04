@@ -74,7 +74,7 @@ Or whatever you want:
 
 This gem depends on
 
-  <tt>/etc/chef/dna.json</tt>
+  /etc/chef/dna.json
 
 being present and containing certain attributes as named by EngineYard. Please let me know if something changes.
 
