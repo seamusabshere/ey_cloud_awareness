@@ -9,6 +9,10 @@ class EngineYardCloudInstance
     @instance_id = instance_id.to_sym
   end
   
+  def to_hash
+    data.merge :instance_id => instance_id
+  end
+  
   def valid?
     data.present?
   end
