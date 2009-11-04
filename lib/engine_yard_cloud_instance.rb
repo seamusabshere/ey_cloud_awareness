@@ -1,5 +1,6 @@
 class EngineYardCloudInstance
-  INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_instance_descriptions.yml" : '/etc/engine_yard_instance_descriptions.yml'
+  CURRENT_INSTANCE_ID_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_id" : '/etc/engine_yard_cloud_instance_id'
+  INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_descriptions.yml" : '/etc/engine_yard_cloud_instance_descriptions.yml'
   DNA_PATH = '/etc/chef/dna.json'
   
   attr_reader :instance_id
@@ -7,14 +8,22 @@ class EngineYardCloudInstance
     @instance_id = instance_id.to_sym
   end
   
+  def valid?
+    data.present?
+  end
+  
   def refresh
     self.class.refresh
   end
   
+  def data
+    self.class.data[instance_id]
+  end
+  
   def method_missing(name, *args, &block)
     name = name.to_sym
-    if me = self.class.data[instance_id] and me.has_key?(name)
-      me[name]
+    if data and data.has_key?(name)
+      data[name]
     else
       super
     end
@@ -37,12 +46,16 @@ class EngineYardCloudInstance
       data.map { |k, _| new k }
     end
     
+    def current
+      new cached_current_instance_id
+    end
+    
     def first
       new data.to_a.first.first
     end
     
     def find_by_instance_id(instance_id)
-      new instance_id.to_sym
+      new instance_id
     end
     
     def find_all_by_instance_roles(*args)
@@ -52,7 +65,8 @@ class EngineYardCloudInstance
     def refresh
       @_data = nil
       @_dna = nil
-      refresh_instance_descriptions true
+      cached_instance_descriptions true
+      cached_current_instance_id true
     end
     
     def data
@@ -84,12 +98,19 @@ class EngineYardCloudInstance
     
     private
     
-    def cached_instance_descriptions(refresh = false)
-      refresh_instance_descriptions refresh
-      @_cached_instance_descriptions ||= YAML.load(IO.read(INSTANCE_DESCRIPTIONS_CACHE_PATH))
+    def cached_current_instance_id(refresh = false)
+      if refresh or !File.readable?(CURRENT_INSTANCE_ID_CACHE_PATH)
+        @_cached_current_instance_id = open("http://169.254.169.254/latest/meta-data/instance-id").gets
+        begin
+          File.open(CURRENT_INSTANCE_ID_CACHE_PATH, 'w') { |f| f.write @_cached_current_instance_id }
+        rescue Errno::EACCES
+          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current instance id because #{CURRENT_INSTANCE_ID_CACHE_PATH} can't be written to"
+        end
+      end
+      @_cached_current_instance_id ||= IO.read(CURRENT_INSTANCE_ID_CACHE_PATH)
     end
     
-    def refresh_instance_descriptions(refresh)
+    def cached_instance_descriptions(refresh = false)
       if refresh or !File.readable?(INSTANCE_DESCRIPTIONS_CACHE_PATH)
         ec2 = RightAws::Ec2.new dna[:aws_secret_id], dna[:aws_secret_key]
         @_cached_instance_descriptions = ec2.describe_instances.map(&:recursive_symbolize_keys!)
@@ -99,6 +120,7 @@ class EngineYardCloudInstance
           $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching instance data because #{INSTANCE_DESCRIPTIONS_CACHE_PATH} can't be written to"
         end
       end
+      @_cached_instance_descriptions ||= YAML.load(IO.read(INSTANCE_DESCRIPTIONS_CACHE_PATH))
     end
   end
 end

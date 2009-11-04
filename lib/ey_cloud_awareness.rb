@@ -1,3 +1,4 @@
+require 'open-uri'
 require 'active_support'
 require 'right_aws'
 require File.expand_path(File.join(File.dirname(__FILE__), 'engine_yard_cloud_instance'))
