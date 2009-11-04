@@ -11,4 +11,8 @@ class Hash
     values.select { |v| v.is_a?(Hash) }.each { |h| h.recursive_symbolize_keys! }
     self
   end
+  
+  def deep_copy
+    Marshal.load(Marshal.dump(self))
+  end
 end

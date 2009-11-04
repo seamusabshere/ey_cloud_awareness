@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Seamus Abshere"]
-  s.date = %q{2009-11-03}
+  s.date = %q{2009-11-04}
   s.description = %q{Make your EngineYard cloud instances aware of each other.}
   s.email = %q{seamus@abshere.net}
   s.extra_rdoc_files = [
@@ -26,6 +26,8 @@ Gem::Specification.new do |s|
      "ey_cloud_awareness.gemspec",
      "lib/engine_yard_cloud_instance.rb",
      "lib/ey_cloud_awareness.rb",
+     "lib/tasks/capistrano_tasks.rb",
+     "lib/tasks/ey_cloud_awareness.rake",
      "spec/ey_cloud_awareness_spec.rb",
      "spec/spec.opts",
      "spec/spec_helper.rb"
