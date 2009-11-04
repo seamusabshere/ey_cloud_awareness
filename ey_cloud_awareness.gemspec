@@ -24,7 +24,6 @@ Gem::Specification.new do |s|
      "Rakefile",
      "VERSION",
      "ey_cloud_awareness.gemspec",
-     "lib/engine_yard_cloud_chef.rb",
      "lib/engine_yard_cloud_instance.rb",
      "lib/ey_cloud_awareness.rb",
      "spec/ey_cloud_awareness_spec.rb",

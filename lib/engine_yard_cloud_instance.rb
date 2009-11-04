@@ -1,5 +1,6 @@
 class EngineYardCloudInstance
   INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_instance_descriptions.yml" : '/etc/engine_yard_instance_descriptions.yml'
+  DNA_PATH = '/etc/chef/dna.json'
   
   attr_accessor :instance_id
   def initialize(instance_id)
@@ -58,9 +59,8 @@ class EngineYardCloudInstance
       return @_data if @_data
       hash = Hash.new
       cached_instance_descriptions.each do |instance_description|
-        key = instance_description[:aws_instance_id].dup
-        hash[key] ||= Hash.new
-        current = hash[key]
+        hash[instance_description[:aws_instance_id]] ||= Hash.new
+        current = hash[instance_description[:aws_instance_id]]
         # using current as a pointer
         if dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
           current[:instance_role] = :db
@@ -73,17 +73,16 @@ class EngineYardCloudInstance
         end
         current[:private_dns_name] = instance_description[:private_dns_name]
         current[:dns_name] = instance_description[:dns_name]
-        current[:aws_instance_id] = instance_description[:aws_instance_id]
         current[:aws_state] = instance_description[:aws_state]
       end
       @_data = hash.recursive_symbolize_keys!
     end
     
-    private
-    
     def dna
-      @_dna ||= EngineYardCloudChef.dna
+      @_dna ||= JSON.load(IO.read(DNA_PATH)).recursive_symbolize_keys!
     end
+    
+    private
     
     def cached_instance_descriptions(refresh = false)
       refresh_instance_descriptions refresh

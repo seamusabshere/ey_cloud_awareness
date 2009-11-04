@@ -1,9 +1,6 @@
 require 'active_support'
 require 'right_aws'
-
-%w{ engine_yard_cloud_instance engine_yard_cloud_chef }.each do |lib|
-  require File.expand_path(File.join(File.dirname(__FILE__), lib))
-end
+require File.expand_path(File.join(File.dirname(__FILE__), 'engine_yard_cloud_instance'))
 
 # http://pragmatig.wordpress.com/2009/04/14/recursive-symbolize_keys/
 class Hash
