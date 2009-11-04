@@ -1,7 +1,13 @@
-class EngineYardInstance
+class EngineYardCloudInstance
+  INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_instance_descriptions.yml" : '/etc/engine_yard_instance_descriptions.yml'
+  
   attr_accessor :instance_id
   def initialize(instance_id)
-    @instance_id = instance_id
+    @instance_id = instance_id.to_sym
+  end
+  
+  def refresh
+    self.class.refresh
   end
   
   def method_missing(name, *args, &block)
@@ -14,28 +20,45 @@ class EngineYardInstance
   end
   
   class << self
+    def app
+      find_all_by_instance_roles :app, :app_master
+    end
+    
+    def db
+      find_all_by_instance_roles :db
+    end
+    
+    def utility
+      find_all_by_instance_roles :utility
+    end
+    
+    def all
+      data.map { |k, _| new k }
+    end
+    
+    def first
+      new data.to_a.first.first
+    end
+    
+    def find_by_instance_id(instance_id)
+      new instance_id.to_sym
+    end
+    
     def find_all_by_instance_roles(*args)
       data.select { |_, v| Array.wrap(args).include? v[:instance_role] }.map { |k, _| new k }
     end
     
-    def app_instances
-      find_all_by_instance_roles :app, :app_master
-    end
-    
-    def db_instances
-      find_all_by_instance_roles :db
-    end
-    
-    def utility_instances
-      find_all_by_instance_roles :utility
+    def refresh
+      @_data = nil
+      @_dna = nil
+      refresh_instance_descriptions true
     end
     
     def data
       return @_data if @_data
-      ec2 = RightAws::Ec2.new dna[:aws_secret_id], dna[:aws_secret_key]
       hash = Hash.new
-      ec2.describe_instances.each do |instance_description|
-        key = instance_description[:aws_instance_id]
+      cached_instance_descriptions.each do |instance_description|
+        key = instance_description[:aws_instance_id].dup
         hash[key] ||= Hash.new
         current = hash[key]
         # using current as a pointer
@@ -53,11 +76,30 @@ class EngineYardInstance
         current[:aws_instance_id] = instance_description[:aws_instance_id]
         current[:aws_state] = instance_description[:aws_state]
       end
-      @_data = hash
+      @_data = hash.recursive_symbolize_keys!
     end
     
+    private
+    
     def dna
-      EngineYardChef.dna
+      @_dna ||= EngineYardCloudChef.dna
+    end
+    
+    def cached_instance_descriptions(refresh = false)
+      refresh_instance_descriptions refresh
+      @_cached_instance_descriptions ||= YAML.load(IO.read(INSTANCE_DESCRIPTIONS_CACHE_PATH))
+    end
+    
+    def refresh_instance_descriptions(refresh)
+      if refresh or !File.readable?(INSTANCE_DESCRIPTIONS_CACHE_PATH)
+        ec2 = RightAws::Ec2.new dna[:aws_secret_id], dna[:aws_secret_key]
+        @_cached_instance_descriptions = ec2.describe_instances.map(&:recursive_symbolize_keys!)
+        begin
+          File.open(INSTANCE_DESCRIPTIONS_CACHE_PATH, 'w') { |f| f.write @_cached_instance_descriptions.to_yaml }
+        rescue Errno::EACCES
+          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching instance data because #{INSTANCE_DESCRIPTIONS_CACHE_PATH} can't be written to"
+        end
+      end
     end
   end
 end
