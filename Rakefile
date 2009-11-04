@@ -5,12 +5,13 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "ey_cloud_awareness"
-    gem.summary = %Q{TODO: one-line summary of your gem}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.summary = %Q{Make your EngineYard cloud instances aware of each other.}
+    gem.description = %Q{Make your EngineYard cloud instances aware of each other.}
     gem.email = "seamus@abshere.net"
     gem.homepage = "http://github.com/seamusabshere/ey_cloud_awareness"
     gem.authors = ["Seamus Abshere"]
-    gem.rubyforge_project = "ey_cloud_awareness"
+    # gem.rubyforge_project = "ey_cloud_awareness"
+    %w{ activesupport right_aws }.each { |name| gem.add_dependency name }
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
