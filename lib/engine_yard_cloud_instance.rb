@@ -1,5 +1,6 @@
 class EngineYardCloudInstance
   CURRENT_INSTANCE_ID_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_id" : '/etc/engine_yard_cloud_instance_id'
+  CURRENT_SECURITY_GROUPS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_security_groups" : '/etc/engine_yard_cloud_security_groups'
   INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_descriptions.yml" : '/etc/engine_yard_cloud_instance_descriptions.yml'
   DNA_PATH = '/etc/chef/dna.json'
   
@@ -66,6 +67,7 @@ class EngineYardCloudInstance
       @_data = nil
       @_dna = nil
       cached_instance_descriptions true
+      cached_current_security_groups true
       cached_current_instance_id true
     end
     
@@ -73,6 +75,7 @@ class EngineYardCloudInstance
       return @_data if @_data
       hash = Hash.new
       cached_instance_descriptions.each do |instance_description|
+        next unless Set.new(Array.wrap(cached_current_security_groups)).superset? Set.new(instance_description[:aws_groups])
         hash[instance_description[:aws_instance_id]] ||= Hash.new
         current = hash[instance_description[:aws_instance_id]]
         # using current as a pointer
@@ -82,12 +85,13 @@ class EngineYardCloudInstance
           current[:instance_role] = :utility
         elsif dna[:master_app_server][:private_dns_name] == instance_description[:private_dns_name]
           current[:instance_role] = :app_master
-        else
+        elsif instance_description[:aws_state] == 'running'
           current[:instance_role] = :app
         end
         current[:private_dns_name] = instance_description[:private_dns_name]
         current[:dns_name] = instance_description[:dns_name]
         current[:aws_state] = instance_description[:aws_state]
+        current[:aws_groups] = instance_description[:aws_groups]
       end
       @_data = hash.recursive_symbolize_keys!
     end
@@ -98,16 +102,22 @@ class EngineYardCloudInstance
     
     private
     
-    def cached_current_instance_id(refresh = false)
-      if refresh or !File.readable?(CURRENT_INSTANCE_ID_CACHE_PATH)
-        @_cached_current_instance_id = open("http://169.254.169.254/latest/meta-data/instance-id").gets
-        begin
-          File.open(CURRENT_INSTANCE_ID_CACHE_PATH, 'w') { |f| f.write @_cached_current_instance_id }
-        rescue Errno::EACCES
-          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current instance id because #{CURRENT_INSTANCE_ID_CACHE_PATH} can't be written to"
+    # def cached_current_instance_id
+    # def cached_current_security_groups
+    %w{ current_instance_id current_security_groups }.each do |name|
+      eval %{
+        def cached_#{name}(refresh = false)
+          if refresh or !File.readable?(#{name.upcase}_CACHE_PATH)
+            @_cached_#{name} = open("http://169.254.169.254/latest/meta-data/#{name.gsub('current_', '').dasherize}").gets
+            begin
+              File.open(#{name.upcase}_CACHE_PATH, 'w') { |f| f.write @_cached_#{name} }
+            rescue Errno::EACCES
+              $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching #{name.humanize.downcase} because \#{#{name.upcase}_CACHE_PATH} can't be written to"
+            end
+          end
+          @_cached_#{name} ||= IO.read(#{name.upcase}_CACHE_PATH)
         end
-      end
-      @_cached_current_instance_id ||= IO.read(CURRENT_INSTANCE_ID_CACHE_PATH)
+      }
     end
     
     def cached_instance_descriptions(refresh = false)
