@@ -2,7 +2,7 @@ class EngineYardCloudInstance
   INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_instance_descriptions.yml" : '/etc/engine_yard_instance_descriptions.yml'
   DNA_PATH = '/etc/chef/dna.json'
   
-  attr_accessor :instance_id
+  attr_reader :instance_id
   def initialize(instance_id)
     @instance_id = instance_id.to_sym
   end
