@@ -37,3 +37,51 @@ namespace :eyc do
     end
   end
 end
+
+class StringReplacer
+  NEWLINE = "AijQA6tD1wkWqgvLzXD"
+  START_MARKER = '# START StringReplacer %s -- DO NOT MODIFY'
+  END_MARKER = "# END StringReplacer %s -- DO NOT MODIFY#{NEWLINE}"
+  
+  attr_accessor :path
+  def initialize(path)
+    @path = path
+  end
+  
+  def replace!(replacement, id = 1)
+    new_path = "#{path}.new"
+    backup_path = "#{path}.bak"
+    current_start_marker = START_MARKER % id.to_s
+    current_end_marker = END_MARKER % id.to_s
+    replacement_with_markers = current_start_marker + NEWLINE + replacement + NEWLINE + current_end_marker
+    text = IO.read(path).gsub("\n", NEWLINE)
+    if text.include? current_start_marker
+      text.gsub! /#{Regexp.escape current_start_marker}.*#{Regexp.escape current_end_marker}/, replacement_with_markers
+    else
+      text << NEWLINE << replacement_with_markers
+    end
+    text.gsub! NEWLINE, "\n"
+    File.open(new_path, 'w') { |f| f.write text }
+    FileUtils.mv path, backup_path
+    FileUtils.mv new_path, path
+  end
+end
+
+namespace :eyc do
+  task :ssh, :roles => :app_master do
+    replacement = []
+    environment_name = ''
+    eyc_proxy.app.each_with_index do |instance, index|
+      environment_name = instance.environment[:name]
+      replacement << %{
+Host #{environment_name}#{index}
+  Hostname #{instance.dns_name}
+  User #{instance.users.first[:username]}
+  StrictHostKeyChecking no
+}
+      end
+    replacement = replacement.join
+    r = StringReplacer.new File.expand_path("~/.ssh/config")
+    r.replace! replacement, environment_name
+  end
+end
