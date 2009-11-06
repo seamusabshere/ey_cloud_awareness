@@ -115,6 +115,7 @@ class EngineYardCloudInstance
         current[:aws_groups] = instance_description[:aws_groups]
         current[:aws_instance_id] = instance_description[:aws_instance_id]
         current[:users] = dna[:users]
+        current[:environment] = dna[:environment]
       end
       @_data = hash.recursive_symbolize_keys!
     end
