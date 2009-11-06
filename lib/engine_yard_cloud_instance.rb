@@ -112,6 +112,7 @@ class EngineYardCloudInstance
         current[:aws_state] = instance_description[:aws_state]
         current[:aws_groups] = instance_description[:aws_groups]
         current[:aws_instance_id] = instance_description[:aws_instance_id]
+        current[:users] = instance_description[:users]
       end
       @_data = hash.recursive_symbolize_keys!
     end
