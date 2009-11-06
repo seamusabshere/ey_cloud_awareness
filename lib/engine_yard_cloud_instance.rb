@@ -100,6 +100,8 @@ class EngineYardCloudInstance
         # using current as a pointer
         if dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
           current[:instance_role] = 'db'
+        elsif Array.wrap(dna[:db_slaves]).include? instance_description[:private_dns_name]
+          current[:instance_role] = 'db_slave'
         elsif Array.wrap(dna[:utility_instances]).include? instance_description[:private_dns_name]
           current[:instance_role] = 'utility'
         elsif dna[:master_app_server][:private_dns_name] == instance_description[:private_dns_name]
