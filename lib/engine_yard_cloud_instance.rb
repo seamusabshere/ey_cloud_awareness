@@ -52,12 +52,24 @@ class EngineYardCloudInstance
       self
     end
     
+    def environment
+      @_environment ||= first.environment
+    end
+    
+    def app_master
+      find_all_by_instance_roles(:app_master).first
+    end
+    
+    def db_master
+      find_all_by_instance_roles(:db_master).first
+    end
+    
     def app
       find_all_by_instance_roles :app, :app_master
     end
     
     def db
-      find_all_by_instance_roles :db
+      find_all_by_instance_roles :db_master, :db_slave
     end
     
     def utility
@@ -66,6 +78,10 @@ class EngineYardCloudInstance
     
     def all
       data.map { |k, _| new k }
+    end
+    
+    def with_roles
+      all.reject { |i| i.instance_role == 'unknown' }
     end
     
     def current
@@ -103,7 +119,7 @@ class EngineYardCloudInstance
         current = hash[instance_description[:aws_instance_id]]
         # using current as a pointer
         if dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
-          current[:instance_role] = 'db'
+          current[:instance_role] = 'db_master'
         elsif Array.wrap(dna[:db_slaves]).include? instance_description[:private_dns_name]
           current[:instance_role] = 'db_slave'
         elsif Array.wrap(dna[:utility_instances]).include? instance_description[:private_dns_name]
@@ -112,6 +128,8 @@ class EngineYardCloudInstance
           current[:instance_role] = 'app_master'
         elsif instance_description[:aws_state] == 'running'
           current[:instance_role] = 'app'
+        else
+          current[:instance_role] = 'unknown'
         end
         current[:private_dns_name] = instance_description[:private_dns_name]
         current[:dns_name] = instance_description[:dns_name]
@@ -120,6 +138,7 @@ class EngineYardCloudInstance
         current[:aws_instance_id] = instance_description[:aws_instance_id]
         current[:users] = dna[:users]
         current[:environment] = dna[:environment]
+        @_environment ||= dna[:environment]
       end
       @_data = hash.recursive_symbolize_keys!
     end
