@@ -26,6 +26,7 @@ task :eyc_setup, :roles => :app_master do
     $stderr.puts output
     raise
   end
+  role :db_master, eyc_proxy.db_master.dns_name
   eyc_proxy.app.each { |i| role :app, i.dns_name }
   eyc_proxy.db.each { |i| role :db, i.dns_name }
 end
@@ -38,6 +39,7 @@ namespace :eyc do
   end
 end
 
+# Used by the eyc:ssh cap task to insert host information into ~/.ssh/config
 class StringReplacer
   NEWLINE = "AijQA6tD1wkWqgvLzXD"
   START_MARKER = '# START StringReplacer %s -- DO NOT MODIFY'
@@ -70,18 +72,32 @@ end
 namespace :eyc do
   task :ssh, :roles => :app_master do
     replacement = []
-    environment_name = ''
-    eyc_proxy.app.each_with_index do |instance, index|
-      environment_name = instance.environment[:name]
+    eyc_proxy.with_roles.each_with_index do |instance, index|
+      case instance.instance_role
+      when 'db_master'
+        explanation = ''
+        shorthand = 'db_master'
+      when 'app_master'
+        explanation = ''
+        shorthand = 'app_master'
+      else
+        explanation = " (#{index})"
+        shorthand = "#{instance.instance_role}#{index}"
+      end
       replacement << %{
-Host #{environment_name}#{index}
-  Hostname #{instance.dns_name}
-  User #{instance.users.first[:username]}
-  StrictHostKeyChecking no
+  # #{instance.instance_role}#{explanation}
+  Host #{eyc_proxy.environment[:name]}-#{shorthand}
+    Hostname #{instance.dns_name}
+    User #{instance.users.first[:username]}
+    StrictHostKeyChecking no
 }
       end
     replacement = replacement.join
-    r = StringReplacer.new File.expand_path("~/.ssh/config")
-    r.replace! replacement, environment_name
+    ssh_config_path = File.expand_path("~/.ssh/config")
+    r = StringReplacer.new ssh_config_path
+    r.replace! replacement, eyc_proxy.environment[:name]
+    
+    $stderr.puts "[EY CLOUD AWARENESS GEM] Added this to #{ssh_config_path}"
+    $stderr.puts replacement
   end
 end
