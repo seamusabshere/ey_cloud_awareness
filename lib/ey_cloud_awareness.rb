@@ -8,7 +8,15 @@ class Hash
   # http://pragmatig.wordpress.com/2009/04/14/recursive-symbolize_keys/
   def recursive_symbolize_keys!
     symbolize_keys!
-    values.select { |v| v.is_a?(Hash) }.each { |h| h.recursive_symbolize_keys! }
+    values.select { |v| v.is_a?(Hash) }.each do |hsh|
+      hsh.recursive_symbolize_keys!
+    end
+    # burst thru at least one level of arrays
+    values.select { |v| v.is_a?(Array) }.each do |ary|
+      ary.each do |v|
+        v.recursive_symbolize_keys! if v.is_a?(Hash)
+      end
+    end
     self
   end
   

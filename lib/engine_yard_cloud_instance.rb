@@ -114,7 +114,7 @@ class EngineYardCloudInstance
         current[:aws_state] = instance_description[:aws_state]
         current[:aws_groups] = instance_description[:aws_groups]
         current[:aws_instance_id] = instance_description[:aws_instance_id]
-        current[:users] = dna[:users].map(&:recursive_symbolize_keys!) # array of hashes, so we have to do this manually
+        current[:users] = dna[:users]
       end
       @_data = hash.recursive_symbolize_keys!
     end
