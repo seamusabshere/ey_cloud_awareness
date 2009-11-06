@@ -30,11 +30,43 @@ Put this in your <tt>config/deploy.rb</tt> (or wherever your deploy-related Capf
   
   # add more tasks if you have more cloud environments
 
+That should be all.
+
+== Running capistrano tasks on your instances
+
 Now you should be able to eycap stuff like:
 
   cap my_app_production monit:status
 
 ...and <b>capistrano will always have a fresh list of your environment's instances</b>. Roles like <tt>:app</tt>, <tt>:db</tt>, and <tt>:utility</tt> are set properly.
+
+== SSH into your instances
+
+If you want to update your <tt>~/.ssh/config</tt> with hosts from a particular environment, run
+
+  cap my_app_production eyc:ssh
+
+and it will magically add or update a block like
+
+  # START StringReplacer my_app_production -- DO NOT MODIFY
+
+  Host my_app_production0
+    Hostname ec2-67-202-43-40.compute-1.amazonaws.com
+    User my_user
+    StrictHostKeyChecking no
+  
+  Host my_app_production1
+    Hostname ec2-222-222-22-22.compute-1.amazonaws.com
+    User my_user
+    StrictHostKeyChecking no
+
+  # END StringReplacer my_app_production -- DO NOT MODIFY
+
+Now you can just ssh like this:
+
+  ssh my_app_production0
+
+Note that you can run it for different environments (my_app_production, my_app_staging, etc.) and they won't overwrite each other.
 
 == Just dumping information about your instances
 
@@ -64,7 +96,7 @@ Or whatever you want:
   >> pp all_app_instances.first.to_hash
   {:dns_name=>"ec2-67-202-43-40.compute-1.amazonaws.com",
    :instance_role=>"app",
-   :aws_groups=>["ey-app1_production-1256085955-3205-13340"],
+   :aws_groups=>["ey-my_app_production-1256085955-3205-13340"],
    :aws_instance_id=>"i-50cf5838",
    :private_dns_name=>"domU-12-31-39-01-99-D3.compute-1.internal",
    :aws_state=>"running"}
