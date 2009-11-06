@@ -34,6 +34,10 @@ class EngineYardCloudInstance
     end
   end
   
+  def ==(other)
+    self.instance_id == other.instance_id
+  end
+  
   class_inheritable_accessor :proxy
   
   class << self
