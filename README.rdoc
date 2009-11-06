@@ -1,8 +1,12 @@
 = ey_cloud_awareness
 
-Make your EngineYard cloud instances aware of each other.
+This gem makes it a little easier to live on the EngineYard cloud:
 
-Never download a new <tt>deploy.rb</tt> again.
+* automatically run cap tasks on all your instances
+* automatically update your ssh aliases
+* allow your app to get information about the cluster (aka "environment") it's running in
+
+We use it over at http://brighterplanet.com.
 
 == Quick start
 
@@ -10,22 +14,23 @@ Put this in <tt>config/environment.rb</tt>:
 
   config.gem 'ey_cloud_awareness', :version => '[WHATEVER THE CURRENT GEM VERSION IS]', :lib => false, :source => 'http://gemcutter.org'
 
-Put this in your <tt>config/deploy.rb</tt> (or wherever your deploy-related Capfile is):
+Put this in your <tt>config/deploy.rb</tt> (or whereever your Capfile is):
 
+  # don't miss this line just because it's at the top
   load "#{Gem.searcher.find('ey_cloud_awareness').full_gem_path}/lib/tasks/capistrano_tasks.rb"
 
-  task :my_app_production do
+  task :my_production do
     role :app_master, 'my_app.com'          # or you can use its Elastic IP
     set :rails_env, 'production'            # required
     set :deploy_to, '/data/my_app'          # required
-    find_and_execute_task 'eyc_setup'       # note that we don't use eyc: namespace
+    find_and_execute_task 'eyc_setup'       # required
   end
 
-  task :my_app_staging do
+  task :my_staging do
     role :app_master, 'staging.my_app.com'  # or you can use its Elastic IP
     set :rails_env, 'production'            # required
     set :deploy_to, '/data/my_app'          # required
-    find_and_execute_task 'eyc_setup'       # note that we don't use eyc: namespace
+    find_and_execute_task 'eyc_setup'       # required
   end
   
   # add more tasks if you have more cloud environments
@@ -34,48 +39,90 @@ That should be all.
 
 == Running capistrano tasks on your instances
 
-Now you should be able to eycap stuff like:
+Run <tt>monit:status</tt> on all the slices in the environment <tt>my_production</tt>:
 
-  cap my_app_production monit:status
+  cap my_production monit:status
 
-...and <b>capistrano will always have a fresh list of your environment's instances</b>. Roles like <tt>:app</tt>, <tt>:db</tt>, and <tt>:utility</tt> are set properly.
+Or you could run <tt>nginx:restart</tt> for <tt>my_staging</tt>:
+
+  cap my_staging nginx:restart
+
+Your capistrano tasks will always have a fresh list of your environment's instances. Roles like <tt>:app</tt> and <tt>:db</tt> are set (so are <tt>:app_master</tt>, <tt>:db_master</tt>, and <tt>:utility</tt>, but you probably don't need those).
 
 == SSH into your instances
 
-If you want to update your <tt>~/.ssh/config</tt> with hosts from a particular environment, run
+Let's say you want to ssh into...
 
-  cap my_app_production eyc:ssh
+  ssh my_production-app_master
 
-and it will magically add or update a block like
+Well, you need to keep your <tt>~/.ssh/config</tt> up-to-date. Easy!
 
-  # START StringReplacer my_app_production -- DO NOT MODIFY
+  cap my_production eyc:ssh
 
-  Host my_app_production0
-    Hostname ec2-67-202-43-40.compute-1.amazonaws.com
-    User my_user
-    StrictHostKeyChecking no
-  
-  Host my_app_production1
-    Hostname ec2-222-222-22-22.compute-1.amazonaws.com
-    User my_user
-    StrictHostKeyChecking no
+That will magically add or update a block like
 
-  # END StringReplacer my_app_production -- DO NOT MODIFY
+  # START StringReplacer my_production -- DO NOT MODIFY
 
-Now you can just ssh like this:
+    # db_master
+    Host my_production-db_master
+      Hostname ec2-222-222-222-59.compute-1.amazonaws.com
+      User my_user
+      StrictHostKeyChecking no
 
-  ssh my_app_production0
+    # utility (1)
+    Host my_production-utility1
+      Hostname ec2-222-222-53-222.compute-1.amazonaws.com
+      User my_user
+      StrictHostKeyChecking no
 
-Note that you can run it for different environments (my_app_production, my_app_staging, etc.) and they won't overwrite each other.
+    # app_master
+    Host my_production-app_master
+      Hostname ec2-222-222-23-222.compute-1.amazonaws.com
+      User my_user
+      StrictHostKeyChecking no
+
+  # END StringReplacer my_production -- DO NOT MODIFY
+
+Run that again as
+
+  cap my_staging eyc:ssh
+
+... and it adds
+
+  # START StringReplacer my_staging -- DO NOT MODIFY
+
+    # app_master
+    Host my_staging-app_master
+      Hostname ec2-222-222-7-210.compute-1.amazonaws.com
+      User my_user
+      StrictHostKeyChecking no
+
+    # db_master
+    Host my_staging-db_master
+      Hostname ec2-222-222-52-8.compute-1.amazonaws.com
+      User my_user
+      StrictHostKeyChecking no
+
+  # END StringReplacer my_staging -- DO NOT MODIFY
+
+This leaves you with lots of useful aliases:
+
+  ssh my_production-db_master
+  ssh my_production-app_master
+  ssh my_production-utility1
+  ssh my_staging-app_master
+  ssh my_staging-db_master
+
+Note that the numbers after app [slaves], db [slaves], and utility [slaves] may change every time you run the task.
 
 == Just dumping information about your instances
 
 Once you've done the quickstart, try:
 
-  cap my_app_production eyc:app         # gets a list of your app instances, including app_master
-  cap my_app_production eyc:utility     # ditto for utility instances
-  cap my_app_production eyc:db          # gets your master db instance (FIXME: I don't think it will find slaves)
-  cap my_app_production eyc:all         # gets a list of all your instances
+  cap my_production eyc:app         # gets a list of your app instances, including app_master
+  cap my_production eyc:utility     # ditto for utility instances
+  cap my_production eyc:db          # ditto for db instances
+  cap my_production eyc:all         # gets a list of all your instances
 
 == Using the EngineYardCloudInstance class inside Rails
 
@@ -96,7 +143,7 @@ Or whatever you want:
   >> pp all_app_instances.first.to_hash
   {:dns_name=>"ec2-67-202-43-40.compute-1.amazonaws.com",
    :instance_role=>"app",
-   :aws_groups=>["ey-my_app_production-1256085955-3205-13340"],
+   :aws_groups=>["ey-my_production-1256085955-3205-13340"],
    :aws_instance_id=>"i-50cf5838",
    :private_dns_name=>"domU-12-31-39-01-99-D3.compute-1.internal",
    :aws_state=>"running"}
