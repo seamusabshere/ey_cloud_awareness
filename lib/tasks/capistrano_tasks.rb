@@ -27,7 +27,10 @@ task :eyc_setup, :roles => :app_master do
     raise
   end
   role :db_master, eyc_proxy.db_master.dns_name
-  eyc_proxy.app.each { |i| role :app, i.dns_name }
+  eyc_proxy.app.each do |i|
+    role :app, i.dns_name
+    role :web, i.dns_name # assuming that you've got nginx on all of your instances
+  end
   eyc_proxy.db.each { |i| role :db, i.dns_name }
 end
 

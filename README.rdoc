@@ -39,15 +39,15 @@ That should be all.
 
 == Running capistrano tasks on your instances
 
-Run <tt>monit:status</tt> on all the slices in the environment <tt>my_production</tt>:
+Commands like these will work:
 
   cap my_production monit:status
+  cap my_production deploy:web:disable
+  cap my_production deploy:web:enable
+  cap my_production passenger:restart
+  cap my_production nginx:restart
 
-Or you could run <tt>nginx:restart</tt> for <tt>my_staging</tt>:
-
-  cap my_staging nginx:restart
-
-Your capistrano tasks will always have a fresh list of your environment's instances. Roles like <tt>:app</tt> and <tt>:db</tt> are set (so are <tt>:app_master</tt>, <tt>:db_master</tt>, and <tt>:utility</tt>, but you probably don't need those).
+Every time you use them, a special <tt>eyc_setup</tt> task is run that gets a fresh list of your environment's instances and sets roles like <tt>:app</tt>, <tt>:web</tt>, and <tt>:db</tt>.
 
 == SSH into your instances
 
