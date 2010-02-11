@@ -57,19 +57,19 @@ class EngineYardCloudInstance
     end
     
     def app_master
-      find_all_by_instance_roles(:app_master).first
+      find_all_by_instance_roles(:app_master).first || find_all_by_instance_roles(:solo).first
     end
     
     def db_master
-      find_all_by_instance_roles(:db_master).first
+      find_all_by_instance_roles(:db_master).first || find_all_by_instance_roles(:solo).first
     end
     
     def app
-      find_all_by_instance_roles :app, :app_master
+      find_all_by_instance_roles :app, :app_master, :solo
     end
     
     def db
-      find_all_by_instance_roles :db_master, :db_slave
+      find_all_by_instance_roles :db_master, :db_slave, :solo
     end
     
     def utility
@@ -118,7 +118,9 @@ class EngineYardCloudInstance
         hash[instance_description[:aws_instance_id]] ||= Hash.new
         current = hash[instance_description[:aws_instance_id]]
         # using current as a pointer
-        if dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
+        if dna[:instance_role] == 'solo'
+          current[:instance_role] = 'solo'
+        elsif dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
           current[:instance_role] = 'db_master'
         elsif Array.wrap(dna[:db_slaves]).include? instance_description[:private_dns_name]
           current[:instance_role] = 'db_slave'
