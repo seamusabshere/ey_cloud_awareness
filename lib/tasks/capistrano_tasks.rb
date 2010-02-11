@@ -75,7 +75,8 @@ end
 namespace :eyc do
   task :ssh, :roles => :app_master do
     replacement = []
-    eyc_proxy.with_roles.each_with_index do |instance, index|
+    counter = 0
+    eyc_proxy.with_roles.each do |instance|
       case instance.instance_role
       when 'db_master'
         explanation = ''
@@ -83,9 +84,13 @@ namespace :eyc do
       when 'app_master'
         explanation = ''
         shorthand = 'app_master'
+      when 'solo'
+        explanation = ''
+        shorthand = 'solo'
       else
-        explanation = " (#{index})"
-        shorthand = "#{instance.instance_role}#{index}"
+        explanation = " (#{counter})"
+        shorthand = "#{instance.instance_role}#{counter}"
+        counter += 1
       end
       replacement << %{
   # #{instance.instance_role}#{explanation}
