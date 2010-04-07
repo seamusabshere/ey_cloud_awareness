@@ -1,8 +1,16 @@
 require 'open-uri'
 require 'set'
-require 'active_support'
+require 'fileutils'
+require 'json'
+require 'yaml'
 require 'right_aws' # See aws-s3 compatibility hack below
-require File.expand_path(File.join(File.dirname(__FILE__), 'engine_yard_cloud_instance'))
+require 'active_support'
+begin; require 'active_support/core_ext/class/inheritable_attributes'; rescue MissingSourceFile; end
+begin; require 'active_support/inflector/inflections'; rescue MissingSourceFile; end
+begin; require 'active_support/core_ext/string/inflections'; rescue MissingSourceFile; end
+begin; require 'active_support/core_ext/hash/keys'; rescue MissingSourceFile; end
+begin; require 'active_support/core_ext/array/wrap'; rescue MissingSourceFile; end
+require 'engine_yard_cloud_instance'
 
 class Hash
   # http://pragmatig.wordpress.com/2009/04/14/recursive-symbolize_keys/

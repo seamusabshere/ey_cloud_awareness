@@ -1,7 +1,7 @@
 class EngineYardCloudInstance
-  CURRENT_INSTANCE_ID_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_id" : '/etc/engine_yard_cloud_instance_id'
-  CURRENT_SECURITY_GROUPS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_security_groups" : '/etc/engine_yard_cloud_security_groups'
-  INSTANCE_DESCRIPTIONS_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_descriptions.yml" : '/etc/engine_yard_cloud_instance_descriptions.yml'
+  CURRENT_INSTANCE_ID_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_id'
+  CURRENT_SECURITY_GROUPS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_security_groups'
+  INSTANCE_DESCRIPTIONS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_descriptions.yml'
   DNA_PATH = '/etc/chef/dna.json'
   
   attr_reader :instance_id
@@ -152,23 +152,33 @@ class EngineYardCloudInstance
     
     private
     
-    # def cached_current_instance_id
-    # def cached_current_security_groups
-    %w{ current_instance_id current_security_groups }.each do |name|
-      eval %{
-        def cached_#{name}(refresh = false)
-          raise "[EY CLOUD AWARENESS GEM] Can't call #{name} if we used from_hash" if self.proxy
-          if refresh or !File.readable?(#{name.upcase}_CACHE_PATH)
-            @_cached_#{name} = open("http://169.254.169.254/latest/meta-data/#{name.gsub('current_', '').dasherize}").gets
-            begin
-              File.open(#{name.upcase}_CACHE_PATH, 'w') { |f| f.write @_cached_#{name} }
-            rescue Errno::EACCES
-              $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching #{name.humanize.downcase} because \#{#{name.upcase}_CACHE_PATH} can't be written to"
-            end
-          end
-          @_cached_#{name} ||= IO.read(#{name.upcase}_CACHE_PATH)
+    def cached_current_instance_id(refresh = false)
+      raise "[EY CLOUD AWARENESS GEM] Can't call current_instance_id if we used from_hash" if self.proxy
+      if refresh or !File.readable?(CURRENT_INSTANCE_ID_CACHE_PATH)
+        @_cached_current_instance_id = open("http://169.254.169.254/latest/meta-data/instance-id").gets
+        begin
+          FileUtils.mkdir_p File.dirname(CURRENT_INSTANCE_ID_CACHE_PATH)
+          File.open(CURRENT_INSTANCE_ID_CACHE_PATH, 'w') { |f| f.write @_cached_current_instance_id }
+        rescue Errno::EACCES
+          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current instance because #{CURRENT_INSTANCE_ID_CACHE_PATH} can't be written to"
         end
-      }
+      end
+      @_cached_current_instance_id ||= IO.read(CURRENT_INSTANCE_ID_CACHE_PATH)
+    end
+  
+
+    def cached_current_security_groups(refresh = false)
+      raise "[EY CLOUD AWARENESS GEM] Can't call current_security_groups if we used from_hash" if self.proxy
+      if refresh or !File.readable?(CURRENT_SECURITY_GROUPS_CACHE_PATH)
+        @_cached_current_security_groups = open("http://169.254.169.254/latest/meta-data/security-groups").gets
+        begin
+          FileUtils.mkdir_p File.dirname(CURRENT_SECURITY_GROUPS_CACHE_PATH)
+          File.open(CURRENT_SECURITY_GROUPS_CACHE_PATH, 'w') { |f| f.write @_cached_current_security_groups }
+        rescue Errno::EACCES
+          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current security groups because #{CURRENT_SECURITY_GROUPS_CACHE_PATH} can't be written to"
+        end
+      end
+      @_cached_current_security_groups ||= IO.read(CURRENT_SECURITY_GROUPS_CACHE_PATH)
     end
     
     def cached_instance_descriptions(refresh = false)
@@ -177,6 +187,7 @@ class EngineYardCloudInstance
         ec2 = RightAws::Ec2.new dna[:aws_secret_id], dna[:aws_secret_key]
         @_cached_instance_descriptions = ec2.describe_instances.map(&:recursive_symbolize_keys!)
         begin
+          FileUtils.mkdir_p File.dirname(INSTANCE_DESCRIPTIONS_CACHE_PATH)
           File.open(INSTANCE_DESCRIPTIONS_CACHE_PATH, 'w') { |f| f.write @_cached_instance_descriptions.to_yaml }
         rescue Errno::EACCES
           $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching instance data because #{INSTANCE_DESCRIPTIONS_CACHE_PATH} can't be written to"

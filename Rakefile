@@ -11,7 +11,9 @@ begin
     gem.homepage = "http://github.com/seamusabshere/ey_cloud_awareness"
     gem.authors = ["Seamus Abshere"]
     # gem.rubyforge_project = "ey_cloud_awareness"
-    %w{ activesupport right_aws }.each { |name| gem.add_dependency name }
+    gem.add_dependency 'json', '>=1.2.3'
+    gem.add_dependency 'activesupport', '>=2.3.4'
+    gem.add_dependency 'right_aws', '1.10.0' # static because of my hack
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
