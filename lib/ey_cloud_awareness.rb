@@ -3,13 +3,20 @@ require 'set'
 require 'fileutils'
 require 'json'
 require 'yaml'
-require 'right_aws' # See aws-s3 compatibility hack below
+require 'AWS' # aka amazon-ec2
 require 'active_support'
-begin; require 'active_support/core_ext/class/inheritable_attributes'; rescue MissingSourceFile; end
-begin; require 'active_support/inflector/inflections'; rescue MissingSourceFile; end
-begin; require 'active_support/core_ext/string/inflections'; rescue MissingSourceFile; end
-begin; require 'active_support/core_ext/hash/keys'; rescue MissingSourceFile; end
-begin; require 'active_support/core_ext/array/wrap'; rescue MissingSourceFile; end
+require 'active_support/version'
+%w{
+  active_support/core_ext/string
+  active_support/core_ext/class/inheritable_attributes
+  active_support/inflector/inflections
+  active_support/core_ext/string/inflections
+  active_support/core_ext/hash/keys
+  active_support/core_ext/array/wrap
+}.each do |active_support_3_requirement|
+  require active_support_3_requirement
+end if ActiveSupport::VERSION::MAJOR == 3
+    
 require 'engine_yard_cloud_instance'
 
 class Hash
@@ -28,36 +35,39 @@ class Hash
     self
   end
   
-  def deep_copy
-    Marshal.load Marshal.dump(self)
-  end
-end
-
-# sabshere 11/05/09
-# Compatibility hack for aws-s3/right_aws
-# Apologies for rescuing instead of directly checking arity
-# I couldn't figure out how to do that because we don't have Module#instance_method
-# ... and the class has overridden Object#method (=> "GET"/"POST"/etc)
-module Net
-  class HTTPGenericRequest
-    def exec(sock, ver, path, send_only = nil)   #:nodoc: internal use only
-      if @body
-        begin
-          send_request_with_body sock, ver, path, @body, send_only
-        rescue ArgumentError
-          $stderr.puts "[EY CLOUD AWARENESS GEM] Rescued from #{$!} because we thought it might have to do with aws-s3/right_aws incompatibility"
-          send_request_with_body sock, ver, path, @body
-        end
-      elsif @body_stream
-        begin
-          send_request_with_body_stream sock, ver, path, @body_stream, send_only
-        rescue ArgumentError
-          $stderr.puts "[EY CLOUD AWARENESS GEM] Rescued from #{$!} because we thought it might have to do with aws-s3/right_aws incompatibility"
-          send_request_with_body_stream sock, ver, path, @body_stream
-        end
-      else
-        write_header sock, ver, path
+  XML_ITEM_KEYS = [ :item, 'item' ]
+  
+  # :sam => { :item => [{ :foo => :bar }] }
+  # into
+  # :sam => [{:foo => :bar}]
+  def kill_xml_item_keys!
+    if keys.length == 1 and XML_ITEM_KEYS.include?(keys.first)
+      raise ArgumentError, "You need to call kill_xml_item_keys! on { :foo => { :items => [...] } } not on { :items => [...] }"
+    end
+    keys.each do |key|
+      if self[key].is_a?(Hash) and self[key].keys.length == 1 and XML_ITEM_KEYS.include?(self[key].keys.first)
+        # self[:sam] = self[:sam]["item"] (using values.first because we don't know if it's :item or "item")
+        self[key] = delete(key).values.first
       end
     end
+    self
+  end
+  
+  def recursive_kill_xml_item_keys!
+    kill_xml_item_keys!
+    values.select { |v| v.is_a?(Hash) }.each do |hsh|
+      hsh.recursive_kill_xml_item_keys!
+    end
+    # burst thru at least one level of arrays
+    values.select { |v| v.is_a?(Array) }.each do |ary|
+      ary.each do |v|
+        v.recursive_kill_xml_item_keys! if v.is_a?(Hash)
+      end
+    end
+    self
+  end
+  
+  def deep_copy
+    Marshal.load Marshal.dump(self)
   end
 end

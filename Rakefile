@@ -6,14 +6,14 @@ begin
   Jeweler::Tasks.new do |gem|
     gem.name = "ey_cloud_awareness"
     gem.summary = %Q{Make your EngineYard cloud instances aware of each other.}
-    gem.description = %Q{Make your EngineYard cloud instances aware of each other.}
+    gem.description = %Q{Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
     gem.email = "seamus@abshere.net"
     gem.homepage = "http://github.com/seamusabshere/ey_cloud_awareness"
     gem.authors = ["Seamus Abshere"]
     # gem.rubyforge_project = "ey_cloud_awareness"
     gem.add_dependency 'json', '>=1.2.3'
     gem.add_dependency 'activesupport', '>=2.3.4'
-    gem.add_dependency 'right_aws', '1.10.0' # static because of my hack
+    gem.add_dependency 'amazon-ec2', '>=0.9.10'
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end

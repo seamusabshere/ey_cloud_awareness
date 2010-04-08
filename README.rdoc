@@ -8,6 +8,18 @@ This gem makes it a little easier to live on the EngineYard cloud:
 
 We use it over at http://brighterplanet.com.
 
+== Don't read this
+
+This gem depends on
+
+  /etc/chef/dna.json
+
+being READABLE and containing certain attributes as named by EngineYard. You might have to add:
+
+  `sudo chmod a+r /etc/chef/dna.json`
+
+to your before_migrate.rb script.
+
 == Quick start
 
 Put this in <tt>config/environment.rb</tt>:
@@ -139,23 +151,50 @@ Or whatever you want:
   >> all_app_instances = EngineYardCloudInstance.app      
   => [#<EngineYardCloudInstance:0xb5e12f70 @instance_id="i-50cf5838">, #<EngineYardCloudInstance:0xb5e12f5c @instance_id="i-dc9207b4">, #<EngineYardCloudInstance:0xb5e12f34 @instance_id="i-b2d84fda">]
   >> all_app_instances.first.dns_name
-  => "ec2-67-202-43-40.compute-1.amazonaws.com"
+  => "ec2-67-201-47-30.compute-1.amazonaws.com"
   >> pp all_app_instances.first.to_hash
-  {:dns_name=>"ec2-67-202-43-40.compute-1.amazonaws.com",
-   :instance_role=>"app",
-   :aws_groups=>["ey-my_production-1256085955-3205-13340"],
-   :aws_instance_id=>"i-50cf5838",
-   :private_dns_name=>"domU-12-31-39-01-99-D3.compute-1.internal",
-   :aws_state=>"running"}
-  => nil
-
-== A note on EngineYard dependence
-
-This gem depends on
-
-  /etc/chef/dna.json
-
-being present and containing certain attributes as named by EngineYard. Please let me know if something changes.
+  => {:block_device_mapping=>
+        [{:ebs=>
+           {:status=>"attached",
+            :volumeId=>"vol-26172ee8",
+            :deleteOnTermination=>"false",
+            :attachTime=>"2010-04-07T21:09:37.000Z"},
+          :deviceName=>"/dev/sdz2"},
+         {:ebs=>
+           {:status=>"attached",
+            :volumeId=>"vol-26172ee8",
+            :deleteOnTermination=>"false",
+            :attachTime=>"2010-04-07T21:09:37.000Z"},
+          :deviceName=>"/dev/sdz1"}],
+        :launch_time=>"2010-04-07T21:08:10.000Z",
+        :instance_type=>"c1.medium",
+        :private_dns_name=>"domU-44-44-44-44-A4-02.compute-1.internal",
+        :instance_state=>{:code=>"16", :name=>"running"},
+        :ami_launch_index=>"0",
+        :users=>
+        [{:password=>"hoppAugEv",
+          :username=>"deploy",
+          :uid=>"1000",
+          :comment=>"",
+          :gid=>"1000"}],
+        :environment=>
+        {:framework_env=>"production",
+         :name=>"my_staging",
+         :stack=>"nginx_passenger"},
+        :instance_id=>"i-50cf5838",
+        :group_id=>"ey-my_staging-XXXXXXXXXXXXXXXXXXXX",
+        :root_device_type=>"instance-store",
+        :private_ip_address=>"10.201.102.201",
+        :kernel_id=>"aki-9b00e5f2",
+        :placement=>{:availabilityZone=>"us-east-1a"},
+        :product_codes=>nil,
+        :image_id=>"ami-7044a419",
+        :reason=>nil,
+        :dns_name=>"ec2-67-201-47-30.compute-1.amazonaws.com",
+        :ip_address=>"199.99.99.99",
+        :architecture=>"i386",
+        :instance_role=>"solo",
+        :monitoring=>{:state=>"disabled"}}
 
 == A note on caching and network needs
 
@@ -163,7 +202,7 @@ I tried to be smart about caching the results of network calls.
 
 Stuff like the current instance id, which is pulled from an EC2 metadata server, is stored in
 
-  CURRENT_INSTANCE_ID_CACHE_PATH = defined?(RAILS_ROOT) ? "#{RAILS_ROOT}/config/engine_yard_cloud_instance_id" : '/etc/engine_yard_cloud_instance_id'
+  CURRENT_INSTANCE_ID_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_id'
 
 Please let me know if this causes problems.
 

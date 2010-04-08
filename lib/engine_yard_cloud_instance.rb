@@ -1,7 +1,7 @@
 class EngineYardCloudInstance
   CURRENT_INSTANCE_ID_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_id'
-  CURRENT_SECURITY_GROUPS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_security_groups'
-  INSTANCE_DESCRIPTIONS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_descriptions.yml'
+  CURRENT_SECURITY_GROUP_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_security_group'
+  INSTANCE_DESCRIPTIONS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_ec2_instance_descriptions.yml'
   DNA_PATH = '/etc/chef/dna.json'
   
   attr_reader :instance_id
@@ -104,49 +104,52 @@ class EngineYardCloudInstance
       raise "[EY CLOUD AWARENESS GEM] Can't clear if we used from_hash" if self.proxy
       @_data = nil
       @_dna = nil
-      cached_instance_descriptions true
-      cached_current_security_groups true
+      cached_ec2_instance_descriptions true
+      cached_current_security_group true
       cached_current_instance_id true
     end
     
     def data
       return @_data if @_data
       raise "[EY CLOUD AWARENESS GEM] Can't calculate data if we used from_hash" if self.proxy
-      hash = Hash.new
-      cached_instance_descriptions.each do |instance_description|
-        next unless Set.new(Array.wrap(cached_current_security_groups)).superset? Set.new(instance_description[:aws_groups])
-        hash[instance_description[:aws_instance_id]] ||= Hash.new
-        current = hash[instance_description[:aws_instance_id]]
-        # using current as a pointer
+      @_data = Hash.new
+      cached_ec2_instance_descriptions.each do |ec2_instance_description|
+        @_data[ec2_instance_description['instanceId']] ||= Hash.new
+        member = @_data[ec2_instance_description['instanceId']]
+        # using instance as a pointer
         if dna[:instance_role] == 'solo'
-          current[:instance_role] = 'solo'
-        elsif dna[:db_host] == instance_description[:dns_name] or dna[:db_host] == instance_description[:private_dns_name]
-          current[:instance_role] = 'db_master'
-        elsif Array.wrap(dna[:db_slaves]).include? instance_description[:private_dns_name]
-          current[:instance_role] = 'db_slave'
-        elsif Array.wrap(dna[:utility_instances]).include? instance_description[:private_dns_name]
-          current[:instance_role] = 'utility'
-        elsif dna[:master_app_server][:private_dns_name] == instance_description[:private_dns_name]
-          current[:instance_role] = 'app_master'
-        elsif instance_description[:aws_state] == 'running'
-          current[:instance_role] = 'app'
+          member[:instance_role] = 'solo'
+        elsif dna[:db_host] == ec2_instance_description['dnsName'] or dna[:db_host] == ec2_instance_description['privateDnsName']
+          member[:instance_role] = 'db_master'
+        elsif Array.wrap(dna[:db_slaves]).include? ec2_instance_description['privateDnsName']
+          member[:instance_role] = 'db_slave'
+        elsif Array.wrap(dna[:utility_instances]).include? ec2_instance_description['privateDnsName']
+          member[:instance_role] = 'utility'
+        elsif dna[:master_app_server][:private_dns_name] == ec2_instance_description['privateDnsName']
+          member[:instance_role] = 'app_master'
+        elsif ec2_instance_description['instanceState']['name'] == 'running'
+          member[:instance_role] = 'app'
         else
-          current[:instance_role] = 'unknown'
+          member[:instance_role] = 'unknown'
         end
-        current[:private_dns_name] = instance_description[:private_dns_name]
-        current[:dns_name] = instance_description[:dns_name]
-        current[:aws_state] = instance_description[:aws_state]
-        current[:aws_groups] = instance_description[:aws_groups]
-        current[:aws_instance_id] = instance_description[:aws_instance_id]
-        current[:users] = dna[:users]
-        current[:environment] = dna[:environment]
+        member[:group_id] = cached_current_security_group
+        member[:users] = dna[:users]
+        member[:environment] = dna[:environment]
         @_environment ||= dna[:environment]
+
+        ec2_instance_description.each do |raw_k, raw_v|
+          k = raw_k.underscore.to_sym
+          next if member.keys.include? k
+          member[k] = raw_v
+        end
       end
-      @_data = hash.recursive_symbolize_keys!
+      @_data.recursive_symbolize_keys!
+      @_data
     end
     
     def dna
       raise "[EY CLOUD AWARENESS GEM] Can't see DNA if we used from_hash" if self.proxy
+      raise "[EY CLOUD AWARENESS GEM] Can't read DNA from #{DNA_PATH}! You should put 'sudo chmod a+r /etc/chef/dna.json' your your before_migrate.rb!" unless File.readable?(DNA_PATH)
       @_dna ||= JSON.load(IO.read(DNA_PATH)).recursive_symbolize_keys!
     end
     
@@ -167,33 +170,37 @@ class EngineYardCloudInstance
     end
   
 
-    def cached_current_security_groups(refresh = false)
-      raise "[EY CLOUD AWARENESS GEM] Can't call current_security_groups if we used from_hash" if self.proxy
-      if refresh or !File.readable?(CURRENT_SECURITY_GROUPS_CACHE_PATH)
-        @_cached_current_security_groups = open("http://169.254.169.254/latest/meta-data/security-groups").gets
+    def cached_current_security_group(refresh = false)
+      raise "[EY CLOUD AWARENESS GEM] Can't call current_security_group if we used from_hash" if self.proxy
+      if refresh or !File.readable?(CURRENT_SECURITY_GROUP_CACHE_PATH)
+        @_cached_current_security_group = open('http://169.254.169.254/latest/meta-data/security-groups').gets
+        raise "[EY CLOUD AWARENESS GEM] Don't know how to deal with (possibly) multiple security group: #{@_cached_current_security_group}" if @_cached_current_security_group =~ /,;/
         begin
-          FileUtils.mkdir_p File.dirname(CURRENT_SECURITY_GROUPS_CACHE_PATH)
-          File.open(CURRENT_SECURITY_GROUPS_CACHE_PATH, 'w') { |f| f.write @_cached_current_security_groups }
+          FileUtils.mkdir_p File.dirname(CURRENT_SECURITY_GROUP_CACHE_PATH)
+          File.open(CURRENT_SECURITY_GROUP_CACHE_PATH, 'w') { |f| f.write @_cached_current_security_group }
         rescue Errno::EACCES
-          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current security groups because #{CURRENT_SECURITY_GROUPS_CACHE_PATH} can't be written to"
+          $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching current security group because #{CURRENT_SECURITY_GROUP_CACHE_PATH} can't be written to"
         end
       end
-      @_cached_current_security_groups ||= IO.read(CURRENT_SECURITY_GROUPS_CACHE_PATH)
+      @_cached_current_security_group ||= IO.read(CURRENT_SECURITY_GROUP_CACHE_PATH)
     end
     
-    def cached_instance_descriptions(refresh = false)
-      raise "[EY CLOUD AWARENESS GEM] Can't call cached_instance_descriptions if we used from_hash" if self.proxy
+    def cached_ec2_instance_descriptions(refresh = false)
+      raise "[EY CLOUD AWARENESS GEM] Can't call cached_ec2_instance_descriptions if we used from_hash" if self.proxy
       if refresh or !File.readable?(INSTANCE_DESCRIPTIONS_CACHE_PATH)
-        ec2 = RightAws::Ec2.new dna[:aws_secret_id], dna[:aws_secret_key]
-        @_cached_instance_descriptions = ec2.describe_instances.map(&:recursive_symbolize_keys!)
+        ec2 = AWS::EC2::Base.new :access_key_id => dna[:aws_secret_id], :secret_access_key => dna[:aws_secret_key]
+        @_cached_ec2_instance_descriptions = ec2.describe_instances
+        @_cached_ec2_instance_descriptions.recursive_kill_xml_item_keys!
+        @_cached_ec2_instance_descriptions = @_cached_ec2_instance_descriptions['reservationSet'].select { |hash| cached_current_security_group.include? hash['groupSet'].first['groupId'] }
+        @_cached_ec2_instance_descriptions.map! { |hash| hash['instancesSet'].first }
         begin
           FileUtils.mkdir_p File.dirname(INSTANCE_DESCRIPTIONS_CACHE_PATH)
-          File.open(INSTANCE_DESCRIPTIONS_CACHE_PATH, 'w') { |f| f.write @_cached_instance_descriptions.to_yaml }
+          File.open(INSTANCE_DESCRIPTIONS_CACHE_PATH, 'w') { |f| f.write @_cached_ec2_instance_descriptions.to_yaml }
         rescue Errno::EACCES
           $stderr.puts "[EY CLOUD AWARENESS GEM] Not caching instance data because #{INSTANCE_DESCRIPTIONS_CACHE_PATH} can't be written to"
         end
       end
-      @_cached_instance_descriptions ||= YAML.load(IO.read(INSTANCE_DESCRIPTIONS_CACHE_PATH))
+      @_cached_ec2_instance_descriptions ||= YAML.load(IO.read(INSTANCE_DESCRIPTIONS_CACHE_PATH))
     end
   end
 end
