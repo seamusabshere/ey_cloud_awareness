@@ -5,12 +5,12 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ey_cloud_awareness}
-  s.version = "0.1.12"
+  s.version = "0.1.13"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Seamus Abshere"]
-  s.date = %q{2010-04-07}
-  s.description = %q{Make your EngineYard cloud instances aware of each other.}
+  s.date = %q{2010-04-08}
+  s.description = %q{Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
   s.email = %q{seamus@abshere.net}
   s.extra_rdoc_files = [
     "LICENSE",
@@ -49,18 +49,18 @@ Gem::Specification.new do |s|
     if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<json>, [">= 1.2.3"])
       s.add_runtime_dependency(%q<activesupport>, [">= 2.3.4"])
-      s.add_runtime_dependency(%q<right_aws>, ["= 1.10.0"])
+      s.add_runtime_dependency(%q<amazon-ec2>, [">= 0.9.10"])
       s.add_development_dependency(%q<rspec>, [">= 1.2.9"])
     else
       s.add_dependency(%q<json>, [">= 1.2.3"])
       s.add_dependency(%q<activesupport>, [">= 2.3.4"])
-      s.add_dependency(%q<right_aws>, ["= 1.10.0"])
+      s.add_dependency(%q<amazon-ec2>, [">= 0.9.10"])
       s.add_dependency(%q<rspec>, [">= 1.2.9"])
     end
   else
     s.add_dependency(%q<json>, [">= 1.2.3"])
     s.add_dependency(%q<activesupport>, [">= 2.3.4"])
-    s.add_dependency(%q<right_aws>, ["= 1.10.0"])
+    s.add_dependency(%q<amazon-ec2>, [">= 0.9.10"])
     s.add_dependency(%q<rspec>, [">= 1.2.9"])
   end
 end
