@@ -4,6 +4,7 @@ require 'fileutils'
 require 'json'
 require 'yaml'
 require 'AWS' # aka amazon-ec2
+require 'etc'
 require 'active_support'
 require 'active_support/version'
 %w{

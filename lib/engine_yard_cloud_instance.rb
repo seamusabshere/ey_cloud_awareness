@@ -1,7 +1,8 @@
 class EngineYardCloudInstance
-  CURRENT_INSTANCE_ID_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_id'
-  CURRENT_SECURITY_GROUP_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_security_group'
-  INSTANCE_DESCRIPTIONS_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_ec2_instance_descriptions.yml'
+  homedir = File.expand_path "~#{Etc.getpwuid.name}"
+  CURRENT_INSTANCE_ID_CACHE_PATH = "#{homedir}/.ey_cloud_awareness/engine_yard_cloud_instance_id"
+  CURRENT_SECURITY_GROUP_CACHE_PATH = "#{homedir}/.ey_cloud_awareness/engine_yard_cloud_security_group"
+  INSTANCE_DESCRIPTIONS_CACHE_PATH = "#{homedir}/.ey_cloud_awareness/engine_yard_cloud_ec2_instance_descriptions.yml"
   DNA_PATH = '/etc/chef/dna.json'
   
   attr_reader :instance_id
