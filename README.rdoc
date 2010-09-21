@@ -29,7 +29,7 @@ Put this in <tt>config/environment.rb</tt>:
 Put this in your <tt>config/deploy.rb</tt> (or whereever your Capfile is):
 
   # don't miss this line just because it's at the top
-  load "#{Gem.searcher.find('ey_cloud_awareness').full_gem_path}/lib/tasks/capistrano_tasks.rb"
+  load "#{Gem.searcher.find('ey_cloud_awareness').full_gem_path}/lib/ey_cloud_awareness/capistrano_tasks.rb"
 
   task :my_production do
     role :app_master, 'my_app.com'          # or you can use its Elastic IP

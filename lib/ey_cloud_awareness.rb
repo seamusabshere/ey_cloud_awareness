@@ -18,7 +18,7 @@ require 'active_support/version'
   require active_support_3_requirement
 end if ActiveSupport::VERSION::MAJOR == 3
     
-require 'engine_yard_cloud_instance'
+require 'ey_cloud_awareness/engine_yard_cloud_instance'
 
 class Hash
   # http://pragmatig.wordpress.com/2009/04/14/recursive-symbolize_keys/
