@@ -2,7 +2,7 @@
 
 This gem makes it a little easier to live on the EngineYard cloud:
 
-* allow your instances to get information about the app_master, db_master, utility workers, etc. in its EngineYard environment
+* allow your instances to get information (metadata) about the app_master, db_master, utility workers, etc. in its EngineYard environment
 * automatically map cap tasks to all your instances
 * automatically update your ssh aliases
 
@@ -24,10 +24,20 @@ to your before_restart.rb hook.
 
 Running this command only works from EngineYard AppCloud Amazon EC2 instances.
 
+  seamus-absheres-macbook:~ $ ssh my_app_staging-app_master
+  Last login: Wed Sep 22 10:33:56 2010 from 9.9.9.9
+  deploy@ip-10-202-197-254 ~ $ sudo gem install ey_cloud_awareness --no-rdoc --no-ri
+  Successfully installed string_replacer-0.0.1
+  Successfully installed ey_cloud_awareness-0.2.0
+  2 gems installed
+  deploy@ip-10-202-197-254 ~ $ sudo chmod a+r /etc/chef/dna.json
+  deploy@ip-10-202-197-254 ~ $ ey_cloud_awareness
+  {"apps":[{"name":"my_app","ebuilds":[{"name":"dev-libs/oniguruma"}],"repository_name":"git@github.com:seamusabshere/my_app.git","database_name":"my_app", [...]
+
 * SSH into one of your EngineYard AppCloud Amazon EC2 instances.
-* Run <tt>sudo gem install ey_cloud_awareness --no-rdoc --no-ri</tt> to make sure the gem binary is installed somewhere in your path.
-* Run <tt>sudo chmod a+r /etc/chef/dna.json</tt> to make sure everybody can read the EngineYard DNA information.
-* Run <tt>ey_cloud_awareness</tt> and you should get back a JSON-encoded hash of instance, environment, app, and other metadata.
+* Running <tt>sudo gem install ey_cloud_awareness --no-rdoc --no-ri</tt> makes sure the gem binary is installed somewhere in your path.
+* Running <tt>sudo chmod a+r /etc/chef/dna.json</tt> makes sure everybody can read the EngineYard DNA information.
+* Running <tt>ey_cloud_awareness</tt>, you should get back a JSON-encoded hash of instance, environment, app, and other metadata.
 
 It returns a cleaned-up combination of Amazon EC2 and EngineYard metadata.
 
