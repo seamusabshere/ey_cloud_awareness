@@ -2,13 +2,13 @@
 
 This gem makes it a little easier to live on the EngineYard cloud:
 
-* automatically run cap tasks on all your instances
+* allow your instances to get information about the app_master, db_master, utility workers, etc. in its EngineYard environment
+* automatically map cap tasks to all your instances
 * automatically update your ssh aliases
-* allow your app to get information about the cluster (aka "environment") it's running in
 
 We use it over at http://brighterplanet.com.
 
-== Don't read this
+== /etc/chef/dna.json must be readable
 
 This gem depends on
 
@@ -16,42 +16,41 @@ This gem depends on
 
 being READABLE and containing certain attributes as named by EngineYard. You might have to add:
 
-  `sudo chmod a+r /etc/chef/dna.json`
+  sudo 'chmod a+r /etc/chef/dna.json'
 
-to your before_migrate.rb script.
+to your before_restart.rb hook.
 
-== Quick start
+== Using the commandline tool directly
 
-Put this in <tt>config/environment.rb</tt>:
+Running this command only works from EngineYard AppCloud Amazon EC2 instances.
 
-  config.gem 'ey_cloud_awareness', :version => '[WHATEVER THE CURRENT GEM VERSION IS]', :lib => false, :source => 'http://gemcutter.org'
+* SSH into one of your EngineYard AppCloud Amazon EC2 instances.
+* Run <tt>sudo gem install ey_cloud_awareness --no-rdoc --no-ri</tt> to make sure the gem binary is installed somewhere in your path.
+* Run <tt>sudo chmod a+r /etc/chef/dna.json</tt> to make sure everybody can read the EngineYard DNA information.
+* Run <tt>ey_cloud_awareness</tt> and you should get back a JSON-encoded hash of instance, environment, app, and other metadata.
 
-Put this in your <tt>config/deploy.rb</tt> (or whereever your Capfile is):
+It returns a cleaned-up combination of Amazon EC2 and EngineYard metadata.
+
+== Capistrano
+
+Put this in your <tt>config/deploy.rb</tt> (or your Capfile):
 
   # don't miss this line just because it's at the top
   load "#{Gem.searcher.find('ey_cloud_awareness').full_gem_path}/lib/ey_cloud_awareness/capistrano_tasks.rb"
 
   task :my_production do
-    role :app_master, 'my_app.com'          # or you can use its Elastic IP
-    set :rails_env, 'production'            # required
-    set :deploy_to, '/data/my_app'          # required
-    find_and_execute_task 'eyc_setup'       # required
+    role :app_master, 'my_app.com'
+    find_and_execute_task 'eyc_setup'       # gets a fresh list of your environment's instances and sets roles
   end
 
   task :my_staging do
-    role :app_master, 'staging.my_app.com'  # or you can use its Elastic IP
-    set :rails_env, 'production'            # required
-    set :deploy_to, '/data/my_app'          # required
-    find_and_execute_task 'eyc_setup'       # required
+    role :app_master, 'staging.my_app.com'
+    find_and_execute_task 'eyc_setup'       # gets a fresh list of your environment's instances and sets roles
   end
   
   # add more tasks if you have more cloud environments
 
-That should be all.
-
-== Running capistrano tasks on your instances
-
-Commands like these will work:
+If you want to use EngineYard tasks like
 
   cap my_production monit:status
   cap my_production deploy:web:disable
@@ -59,100 +58,74 @@ Commands like these will work:
   cap my_production passenger:restart
   cap my_production nginx:restart
 
-Every time you use them, a special <tt>eyc_setup</tt> task is run that gets a fresh list of your environment's instances and sets roles like <tt>:app</tt>, <tt>:web</tt>, and <tt>:db</tt>.
+then you should make sure the tasks look like
 
+  [...]
+  require 'eycap/recipes'
+  ssh_options[:compression] = false
+  set :user, 'deploy'
+  set :runner, 'deploy'
+  [...]
+  
+  task :my_production do
+    role :app_master, 'my_app.com'
+    find_and_execute_task 'eyc_setup'
+    set :rails_env, 'production'          # required for eycap
+    set :deploy_to, '/data/my_app'        # required for eycap too
+  end
+  
+  task :my_staging do
+    role :app_master, 'staging.my_app.com'
+    find_and_execute_task 'eyc_setup'
+    set :rails_env, 'production'          # required for eycap
+    set :deploy_to, '/data/my_app'        # required for eycap too
+  end
+  
 == SSH into your instances
 
-Let's say you want to ssh into...
+You can easily create SSH aliases like...
 
   ssh my_production-app_master
 
-Well, you need to keep your <tt>~/.ssh/config</tt> up-to-date. Easy!
+using the following task:
 
   cap my_production eyc:ssh
-
-That will magically add or update a block like
-
-  # START StringReplacer my_production -- DO NOT MODIFY
-
-    # db_master
-    Host my_production-db_master
-      Hostname ec2-222-222-222-59.compute-1.amazonaws.com
-      User my_user
-      StrictHostKeyChecking no
-
-    # utility (1)
-    Host my_production-utility1
-      Hostname ec2-222-222-53-222.compute-1.amazonaws.com
-      User my_user
-      StrictHostKeyChecking no
-
-    # app_master
-    Host my_production-app_master
-      Hostname ec2-222-222-23-222.compute-1.amazonaws.com
-      User my_user
-      StrictHostKeyChecking no
-
-  # END StringReplacer my_production -- DO NOT MODIFY
-
-Run that again as
-
   cap my_staging eyc:ssh
 
-... and it adds
-
-  # START StringReplacer my_staging -- DO NOT MODIFY
-
-    # app_master
-    Host my_staging-app_master
-      Hostname ec2-222-222-7-210.compute-1.amazonaws.com
-      User my_user
-      StrictHostKeyChecking no
-
-    # db_master
-    Host my_staging-db_master
-      Hostname ec2-222-222-52-8.compute-1.amazonaws.com
-      User my_user
-      StrictHostKeyChecking no
-
-  # END StringReplacer my_staging -- DO NOT MODIFY
-
-This leaves you with lots of useful aliases:
+That will magically update <tt>~/.ssh/config</tt> with aliases like
 
   ssh my_production-db_master
   ssh my_production-app_master
-  ssh my_production-utility1
+  ssh my_production-app0
+  ssh my_production-app1
+  ssh my_production-app2
+  ssh my_production-util0
+  ssh my_production-util1
+  
   ssh my_staging-app_master
   ssh my_staging-db_master
 
-Note that the numbers after app [slaves], db [slaves], and utility [slaves] may change every time you run the task.
-
-== Just dumping information about your instances
+Unfortunately, the counters are arbitrary and so the assignment of util0 versus util1, etc. may change every time you update your <tt>.ssh/config</tt> file with this task.
 
 Once you've done the quickstart, try:
 
-  cap my_production eyc:app         # gets a list of your app instances, including app_master
-  cap my_production eyc:utility     # ditto for utility instances
-  cap my_production eyc:db          # ditto for db instances
+  cap my_production eyc:app_servers # gets a list of your app instances, including app_master
+  cap my_production eyc:utilities   # ditto for utility instances
+  cap my_production eyc:db_servers  # ditto for db instances
   cap my_production eyc:all         # gets a list of all your instances
 
-== Using the EngineYardCloudInstance class inside Rails
+== Making your instances aware of each other
 
-I run a memcached server on every app instance, so I have this in <tt>config/environment.rb</tt>:
+You can use EngineYardCloudInstance to pull up information on other instances in an environment:
 
-  Rails::Initializer.run do |config|
-    [...]
-    config.cache_store = :mem_cache_store, EngineYardCloudInstance.app.map { |i| "#{i.private_dns_name}:11211" }
-    [...]
-  end
-
-Or whatever you want:
-
-  >> all_app_instances = EngineYardCloudInstance.app      
-  => [#<EngineYardCloudInstance:0xb5e12f70 @instance_id="i-50cf5838">, #<EngineYardCloudInstance:0xb5e12f5c @instance_id="i-dc9207b4">, #<EngineYardCloudInstance:0xb5e12f34 @instance_id="i-b2d84fda">]
-  >> all_app_instances.first.dns_name
+  >> db_master = EngineYardCloudInstance.db_master
+  => #<EngineYardCloudInstance:0xb5e12f70 @instance_id="i-50cf5838">
+  >> db_master.dns_name
   => "ec2-67-201-47-30.compute-1.amazonaws.com"
-  >> pp all_app_instances.first.to_hash
+
+You can also inspect the whole set of metadata itself. This may change over time:
+
+  >> pp db_master.data
   => {:block_device_mapping=>
         [{:ebs=>
            {:status=>"attached",
@@ -193,19 +166,19 @@ Or whatever you want:
         :dns_name=>"ec2-67-201-47-30.compute-1.amazonaws.com",
         :ip_address=>"199.99.99.99",
         :architecture=>"i386",
-        :instance_role=>"solo",
+        :role=>"db_master",
         :monitoring=>{:state=>"disabled"}}
 
 == A note on caching and network needs
 
 I tried to be smart about caching the results of network calls.
 
-Stuff like the current instance id, which is pulled from an EC2 metadata server, is stored in
+Stuff like the present instance id, which is pulled from an EC2 metadata server, is stored in
 
-  CURRENT_INSTANCE_ID_CACHE_PATH = File.expand_path '~/.ey_cloud_awareness/engine_yard_cloud_instance_id'
+  ~/.ey_cloud_awareness/engine_yard_cloud_instance_id
 
 Please let me know if this causes problems.
 
 == Copyright
 
-Copyright (c) 2009 Seamus Abshere. See LICENSE for details.
+Copyright (c) 2009, 2010 Seamus Abshere. See LICENSE for details.

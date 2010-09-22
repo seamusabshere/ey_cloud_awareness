@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require 'ey_cloud_awareness'
+
+EngineYardCloudInstance.clear
+puts EngineYardCloudInstance.to_json

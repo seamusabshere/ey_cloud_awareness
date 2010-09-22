@@ -1,24 +1,15 @@
 require 'ey_cloud_awareness'
-require 'pp'
 
 task :eyc_setup, :roles => :app_master do
-  version = Gem.searcher.find('ey_cloud_awareness').version.to_s
-  begin
-    run "gem list ey_cloud_awareness --installed --version #{version}"
-  rescue
-    $stderr.puts "[EY CLOUD AWARENESS GEM] app_master doesn't have ey_cloud_awareness --version #{version} installed. You need to have the exact same version installed."
-    raise $!
-  end
-
-  upload File.expand_path(File.join(File.dirname(__FILE__), 'ey_cloud_awareness.rake')), "#{deploy_to}/current/lib/tasks/ey_cloud_awareness.rake"
-  
-  output = capture("cd #{deploy_to}/current && rake --silent eyc:to_json RAILS_ENV=#{rails_env}").gsub(/\s+/, ' ')
+  # pull JSON-encoded metadata
+  output = capture('ey_cloud_awareness').gsub /\s+/, ' '
   if /(\{.*\})/.match(output)
+    json_str = $1
     begin
-      set :eyc_proxy, EngineYardCloudInstance.from_hash(ActiveSupport::JSON.decode($1))
+      set :eyc_proxy, EngineYardCloudInstance.from_json(json_str)
     rescue
       $stderr.puts "[EY CLOUD AWARENESS GEM] Couldn't parse JSON, so just dumping what we got"
-      $stderr.puts $1
+      $stderr.puts json_str
       raise $!
     end
   else
@@ -26,58 +17,36 @@ task :eyc_setup, :roles => :app_master do
     $stderr.puts output
     raise
   end
+  
+  # now set up roles
+  # role :app_master is already set
   role :db_master, eyc_proxy.db_master.dns_name
-  eyc_proxy.app.each do |i|
+  eyc_proxy.app_servers.each do |i|
     role :app, i.dns_name
-    role :web, i.dns_name # assuming that you've got nginx on all of your instances
+    role :web, i.dns_name
   end
-  eyc_proxy.db.each { |i| role :db, i.dns_name }
+  eyc_proxy.db_servers.each do |i|
+    role :db, i.dns_name
+  end
+  eyc_proxy.utilities.each do |i|
+    role :util, i.dns_name
+  end
 end
 
 namespace :eyc do
-  %w{ app db utility all first }.each do |name|
+  %w{ app_servers db_servers utilities all }.each do |name|
     task name, :roles => :app_master do
+      require 'pp'
       pp eyc_proxy.send(name).map(&:to_hash)
     end
   end
-end
 
-# Used by the eyc:ssh cap task to insert host information into ~/.ssh/config
-class StringReplacer
-  NEWLINE = "AijQA6tD1wkWqgvLzXD"
-  START_MARKER = '# START StringReplacer %s -- DO NOT MODIFY'
-  END_MARKER = "# END StringReplacer %s -- DO NOT MODIFY#{NEWLINE}"
-  
-  attr_accessor :path
-  def initialize(path)
-    @path = path
-  end
-  
-  def replace!(replacement, id = 1)
-    new_path = "#{path}.new"
-    backup_path = "#{path}.bak"
-    current_start_marker = START_MARKER % id.to_s
-    current_end_marker = END_MARKER % id.to_s
-    replacement_with_markers = current_start_marker + NEWLINE + replacement + NEWLINE + current_end_marker
-    text = IO.read(path).gsub("\n", NEWLINE)
-    if text.include? current_start_marker
-      text.gsub! /#{Regexp.escape current_start_marker}.*#{Regexp.escape current_end_marker}/, replacement_with_markers
-    else
-      text << NEWLINE << replacement_with_markers
-    end
-    text.gsub! NEWLINE, "\n"
-    File.open(new_path, 'w') { |f| f.write text }
-    FileUtils.mv path, backup_path
-    FileUtils.mv new_path, path
-  end
-end
-
-namespace :eyc do
   task :ssh, :roles => :app_master do
+    require 'string_replacer'
     replacement = []
-    counter = 0
+    counters = Hash.new(0)
     eyc_proxy.with_roles.each do |instance|
-      case instance.instance_role
+      case instance.role
       when 'db_master'
         explanation = ''
         shorthand = 'db_master'
@@ -88,24 +57,24 @@ namespace :eyc do
         explanation = ''
         shorthand = 'solo'
       else
-        explanation = " (#{counter})"
-        shorthand = "#{instance.instance_role}#{counter}"
-        counter += 1
+        explanation = " (#{counters[instance.role]})"
+        shorthand = "#{instance.role}#{counters[instance.role]}"
+        counters[instance.role] += 1
       end
       replacement << %{
-  # #{instance.instance_role}#{explanation}
-  Host #{eyc_proxy.environment[:name]}-#{shorthand}
+  # #{instance.role}#{explanation}
+  Host #{eyc_proxy.environment['name']}-#{shorthand}
     Hostname #{instance.dns_name}
-    User #{instance.users.first[:username]}
+    User #{instance.user['username']}
     StrictHostKeyChecking no
 }
-      end
-    replacement = replacement.join
+    end
+    string = replacement.join
     ssh_config_path = File.expand_path("~/.ssh/config")
     r = StringReplacer.new ssh_config_path
-    r.replace! replacement, eyc_proxy.environment[:name]
+    r.replace! string, eyc_proxy.environment['name'], nil
     
     $stderr.puts "[EY CLOUD AWARENESS GEM] Added this to #{ssh_config_path}"
-    $stderr.puts replacement
+    $stderr.puts string
   end
 end
