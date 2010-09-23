@@ -167,8 +167,9 @@ class EngineYardCloudInstance
     def mixed_instances
       ec2_instances.inject(Hash.new) do |memo, ec2_instance|
         instance_id = ec2_instance['instance_id']
-        mixed_instance = dna_instances.detect { |dna_instance| dna_instance['id'] == instance_id }.merge ec2_instance
-        memo[instance_id] = mixed_instance
+        if dna_instance = dna_instances.detect { |i| i['id'] == instance_id }
+          memo[instance_id] = dna_instance.merge ec2_instance
+        end
         memo
       end
     end
