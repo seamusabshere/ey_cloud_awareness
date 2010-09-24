@@ -8,6 +8,14 @@ This gem makes it a little easier to live on the EngineYard cloud:
 
 We use it over at http://brighterplanet.com.
 
+== DEPRECATED
+
+Use http://rubygems.org/gems/engineyard-metadata instead.
+
+== Purpose
+
+To define an unchanging interface to certain metadata that is buried deep inside JSON config files and EC2 API calls.
+
 == /etc/chef/dna.json must be readable
 
 This gem depends on

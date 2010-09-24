@@ -5,8 +5,8 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "ey_cloud_awareness"
-    gem.summary = %Q{Make your EngineYard cloud instances aware of each other.}
-    gem.description = %Q{Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
+    gem.summary = %Q{DEPRECATED: use engineyard-metadata. Make your EngineYard cloud instances aware of each other.}
+    gem.description = %Q{DEPRECATED: use engineyard-metadata. Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
     gem.email = "seamus@abshere.net"
     gem.homepage = "http://github.com/seamusabshere/ey_cloud_awareness"
     gem.authors = ["Seamus Abshere"]
