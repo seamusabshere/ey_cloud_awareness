@@ -5,13 +5,13 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ey_cloud_awareness}
-  s.version = "0.2.1"
+  s.version = "0.2.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Seamus Abshere"]
-  s.date = %q{2010-09-23}
+  s.date = %q{2010-09-24}
   s.default_executable = %q{ey_cloud_awareness}
-  s.description = %q{Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
+  s.description = %q{DEPRECATED: use engineyard-metadata. Pull metadata from EC2 and EngineYard so that your EngineYard Cloud instances know about each other.}
   s.email = %q{seamus@abshere.net}
   s.executables = ["ey_cloud_awareness"]
   s.extra_rdoc_files = [
@@ -39,7 +39,7 @@ Gem::Specification.new do |s|
   s.rdoc_options = ["--charset=UTF-8"]
   s.require_paths = ["lib"]
   s.rubygems_version = %q{1.3.7}
-  s.summary = %q{Make your EngineYard cloud instances aware of each other.}
+  s.summary = %q{DEPRECATED: use engineyard-metadata. Make your EngineYard cloud instances aware of each other.}
   s.test_files = [
     "spec/ey_cloud_awareness_spec.rb",
      "spec/spec_helper.rb"
